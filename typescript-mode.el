@@ -631,6 +631,41 @@ seldom use, either globally or on a per-buffer basis."
   :type 'hook
   :group 'typescript)
 
+;;; Public utilities
+
+(defun typescript--move-to-end-of-plain-string ()
+  "If in a plain string, move to the end of it. A plain string is a
+string which is not a template string. Otherwise, the point does not change.
+
+Returns point if the point was changed, or nil if point was not changed.
+"
+  (let* ((syntax (syntax-ppss))
+         (str-terminator (nth 3 syntax))
+         (string-start (nth 8 syntax)))
+    (when (and string-start
+               (not (eq str-terminator ?`)))
+      ;; We just search forward and then check if the hit we get has a
+      ;; string-start equal to ours.
+      (when (re-search-forward
+             (concat "\\(?:[^\\]\\|^\\)\\(" (string str-terminator) "\\)")
+             nil t)
+        (goto-char (match-beginning 1))))))
+
+(defun typescript-convert-to-template ()
+  "Convert the string at point to a template string."
+  (interactive)
+  (save-excursion
+    (let* ((syntax (syntax-ppss))
+           (string-start (nth 8 syntax)))
+      (when (and string-start
+                 (typescript--move-to-end-of-plain-string))
+        (let ((end-start (or (nth 8 (syntax-ppss)) -1)))
+          (when (=  end-start string-start)
+            (replace-match "`" t t nil 1)))
+        (goto-char string-start)
+        (delete-char 1)
+        (insert "`")))))
+
 ;;; KeyMap
 
 (defvar typescript-mode-map
